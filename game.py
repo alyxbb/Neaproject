@@ -1,7 +1,52 @@
 import random
+import sqlite3
+import hashlib
+from getpass import getpass
+conn = sqlite3.connect('data.db')
+c = conn.cursor()
+def createtables():
+  
+    c.execute("CREATE TABLE if not exists songs(name TEXT NOT NULL PRIMARY KEY, artist TEXT)")
+    #create a table of songs containing the names and artists of the songs
+    c.execute("CREATE TABLE if not exists highscores(score INTEGER, user TEXT)")
+    #create a table of highscores
+    c.execute("CREATE TABLE if not exists users(username TEXT NOT NULL PRIMARY KEY, password TEXT NOT NULL,admin INTEGER)")
+    #create a table of usernames and hashed passwords.
+    c.execute("SELECT * FROM users")#get a list of all users
+    if len(c.fetchall())==0:#if there are no users,create a user
+        print("---------setup---------")
+        print("admin account setup")
+        while True:#repeatedly get username until a valid username is entered
+            username=input("username:")
 
-SONGS = [["song author 1", "song name 1"], ["songauthor2", "SONG2"], ["Authorofsong3", "Song Number 3"],
-         ["songAuthor4", "song Number4"], ["song author 1", "another song"]]  # some fake songs for testing
+            if len(username)==0:#if they didnt provide a username print an error
+                print("please input a username")
+                continue
+            else:
+                break#if they did provide a username exit the loop
+        while True:
+            while True:
+                #repeatedly get password until password is valid.
+                password = getpass("password:")
+
+                if len(password)==0:#if they didnt provide a password print an error
+                    print("please input a password")
+                    continue
+                else:
+                    break#if they did provide a password exit the loop
+            passwordcheck = getpass("retype password:")
+            if passwordcheck!=password:#if passwords dont match then try again
+                print("passwords do not match, please try again")
+                continue
+            else:
+                break
+        hashedpass=hashlib.sha3_512(bytes(password,"utf-8")).hexdigest()#hash the password
+        password="NOPE"#set the password to nope so hackers dont know what the password was.
+        c.execute("INSERT INTO users values(?, ?,1)",(username,hashedpass))#create the admin user
+        
+    conn.commit()#save the database
+
+SONGS = [["song author 1", "song name 1"], ["songauthor2", "SONG2"], ["Authorofsong3", "Song Number 3"],["songAuthor4", "song Number4"], ["song author 1", "another song"]]  # some fake songs for testing
 
 
 def get_first_letters(phrase):  # returns the phrase with only the first character in each sentence shown
@@ -64,6 +109,32 @@ def guess_song(song_name):
         print("Wrong try again")  # doesnt match so they got it wrong
         return False
 
+def login():
+    while True:
+        print("----------login----------")
+        while True:
+
+            #get username and password
+            username=input("username:")
+            password=getpass("password:")
+
+            #hash password
+            hashedpass=hashlib.sha3_512(bytes(password,"utf-8")).hexdigest()
+            password="NOPE"
+
+            #check if the user exists
+            c.execute("SELECT username,admin FROM users WHERE username=? and password=?",(username,hashedpass))
+
+            #if the user exists stop asking for username, otherwise continue asking for login details
+            if c.fetchone() is  None:
+                continue
+            else:
+                break
+        
+
+            
+
 
 if __name__ == '__main__':  # run the game if this file is run
-    play_game()
+    createtables()
+    login()
