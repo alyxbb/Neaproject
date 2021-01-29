@@ -12,7 +12,7 @@ def createtables():
     #create a table of highscores
     c.execute("CREATE TABLE if not exists users(username TEXT NOT NULL PRIMARY KEY, password TEXT NOT NULL,admin INTEGER)")
     #create a table of usernames and hashed passwords.
-    c.execute("SELECT * FROM users")#get a list of all users
+    c.execute("SELECT * FROM users WHERE admin=1")#get a list of all users
     if len(c.fetchall())==0:#if there are no users,create a user
         print("---------setup---------")
         print("admin account setup")
@@ -25,24 +25,14 @@ def createtables():
             else:
                 break#if they did provide a username exit the loop
         while True:
-            while True:
-                #repeatedly get password until password is valid.
-                password = getpass("password:")
-
-                if len(password)==0:#if they didnt provide a password print an error
-                    print("please input a password")
-                    continue
-                else:
-                    break#if they did provide a password exit the loop
-            passwordcheck = getpass("retype password:")
+            password = getpwd()
+            passwordcheck = getpwd("retype password:")
             if passwordcheck!=password:#if passwords dont match then try again
                 print("passwords do not match, please try again")
                 continue
             else:
                 break
-        hashedpass=hashlib.sha3_512(bytes(password,"utf-8")).hexdigest()#hash the password
-        password="NOPE"#set the password to nope so hackers dont know what the password was.
-        c.execute("INSERT INTO users values(?, ?,1)",(username,hashedpass))#create the admin user
+        c.execute("INSERT INTO users values(?, ?,1)",(username,password))#create the admin user
         
     conn.commit()#save the database
 
@@ -109,27 +99,291 @@ def guess_song(song_name):
         print("Wrong try again")  # doesnt match so they got it wrong
         return False
 
+def chooseoption(maxi):
+    while True:
+        choice=input("please input a number(1-"+str(maxi)+")")#get an input
+
+        #check if the input is valid
+        try:
+            choiceNo=int(choice)
+        except ValueError:
+            print("please input a number")
+            continue
+        else:
+            if choiceNo>maxi:
+                print("number must be less than",maxi)
+                continue
+            elif choiceNo<1:
+                print("number must be greater than 0")
+                continue
+            else:
+                return choiceNo
+
+
+def accountmanager(username,admin):
+    while True:
+        print("----------------account manager--------------")
+        print("1.change username")
+        print("2.change password")
+        print("3.delete account")
+        print("4.exit account manager")
+        choiceNo=chooseoption(4)
+        if choiceNo==1:
+            while True:
+                passw=getpwd()
+                c.execute("SELECT username FROM users WHERE username=? and password=?",(username,passw))
+                user=c.fetchone()
+                if user is None:
+                    print("incorrect password")
+                    continue
+                else:
+                    break
+            while True:
+                newusername=input("new username:")
+
+                if len(newusername)==0:#if they didnt provide a username print an error
+                    print("please input a username")
+                    continue
+                else:
+                    break
+            c.execute("UPDATE users SET username=? WHERE username=?",(newusername,username))
+        elif choiceNo==2:
+            while True:
+                passw=getpwd("old password:")
+                c.execute("SELECT username FROM users WHERE username=? and password=?",(username,passw))
+                user=c.fetchone()
+                if user is None:
+                    print("incorrect password")
+                    continue
+                else:
+                    break
+            while True:
+                newpass=getpwd("new password:")
+                newpasscheck=getpwd("repeat new password:")
+
+                if newpass!=newpasscheck:#if they didnt provide a username print an error
+                    print("passwords do not match, please try again")
+                    continue
+                else:
+                    break
+            c.execute("UPDATE users SET username=? WHERE username=?",(newusername,username))
+            conn.commit()
+        elif choiceNo==3:
+            while True:
+                passw=getpwd("password:")
+                c.execute("SELECT username FROM users WHERE username=? and password=?",(username,passw))
+                if user is None:
+                    print("incorrect password")
+                    continue
+                else:
+                    break
+                
+            confirmation=input("please type",username,"to confirm account deletion")
+            if confirmation==username:
+                return False,username
+            else:
+                print("cancelling...")
+        elif choiceNo==4:
+            return True, username
+
+        
+def songmanager():
+    while True:
+        print("----------------song manager--------------")
+        print("1.add song")
+        print("2.edit song")
+        print("3.delete song")
+        print("4.exit song manager")
+        choiceNo=chooseoption(4)
+        if choiceNo==1:
+            while True:
+                print("-----song adder-----")
+                while True:
+                    name=input("song name:")
+                    if len(name)==0:
+                        print("please input a song name")
+                        continue 
+                    artists=input("song artist:")
+                    if len(author)==0:
+                        print("please input an author")
+                        continue
+                    else:
+                        break
+                c.execute("INSERT INTO songs values(?, ?)",(name,artists))
+                conn.commit()
+                while True:
+                    cont=input("would you like to continue (Y/N)").upper()
+                    if cont!="Y" and cont!="N":
+                        print("please input y or N")
+                        continue
+                    else:
+                        break
+                if cont=="Y":
+                    print("adding next song")
+                    continue
+                elif cont=="N":
+                    break
+        if choiceNo==2:
+            c.execute("SELECT * FROM songs")
+            songslist=c.fetchall()
+            songcount=len(songslist)
+            digits=len(str(songcount))
+            songs,artists=zip(*songslist)
+            longestsonglen=len(max(songs,key=len))
+            longestartistlen=len(max(artists,key=len))
+            digitsstr=str(digits)+"d"
+            
+            for count, song in enumerate(songslist):
+                countstr=format(count+1, digitsstr)
+                songspaces=longestsonglen-len(song[0])
+                artistspaces=longestartistlen-len(song[1])
+                line="| "+countstr+" | "+song[0]+" "*songspaces+" | "+song[1]+" |"
+                print(line)
+            choice=chooseoption(songcount)
+            songselected=songslist[choice-1]
+            while True:
+                print(songselected[0])
+                print("1.change name")
+                print("2.change artist")
+                print("3.back")
+                choiceid=chooseoption(3)
+                if choiceid==1:
+                    while True:
+                        newname=input("new name:")
+                        if len(newname)==0:
+                            print("invalid name")
+                            continue
+                        else:
+                            break
+                    c.execute("UPDATE songs SET name=? WHERE name=?",(newname,songselected[0]))
+
+                elif choiceid==2:
+                    while True:
+                        newartist=input("new artist name:")
+                        if len(newname)==0:
+                            print("invalid artist name")
+                            continue
+                        else:
+                            break
+                    c.execute("UPDATE songs SET artist=? WHERE name=?",(newartist,songselected[0]))
+                elif choiceid==3:
+                    break
+
+
+
+        if choiceNo==3:
+            c.execute("SELECT * FROM songs")
+            songslist=c.fetchall()
+            songcount=len(songslist)
+            digits=len(str(songcount))
+            songs,artists=zip(*songslist)
+            longestsonglen=len(max(songs,key=len))
+            longestartistlen=len(max(artists,key=len))
+            digitsstr=str(digits)+"d"
+            
+            for count, song in enumerate(songslist):
+                countstr=format(count+1, digitsstr)
+                songspaces=longestsonglen-len(song[0])
+                artistspaces=longestartistlen-len(song[1])
+                line="| "+countstr+" | "+song[0]+" "*songspaces+" | "+song[1]+" |"
+                print(line)
+            choice=chooseoption(songcount)
+            confirm=input("are you sure you want to delete this song?(Y/N)").upper()
+            songselected=songslist[choice-1][0]
+            if confirm==True:
+                c.execute("DELETE FROM table WHERE name=?",songselected)
+        elif choiceNo==4:
+            return
+
+
+
+def mainmenu(user):
+
+    #set admin variable
+    if user[1]==1:
+        admin=True
+    else:
+        admin=False
+    username=user[0]
+
+    #print menu
+    print("--------------menu----------------")
+    print("1.logout")
+    print("2.play")
+    print("3.leaderboard")
+    print("4.account managment")
+    options=4
+    #if they are an admin show the admin only options
+    if admin:
+        options=6
+        print("5.song managment")
+        print("6.user managment")
+    choiceNo=chooseoption(options)
+
+    if choiceNo==1:
+        #reset user variables for increased security
+        user=tuple()
+        username=""
+        admin=False
+        return
+    elif choiceNo==2:
+        play_game()
+    elif choiceNo==3:
+        print("leaderboard not implemented")
+        #need to add leaderboard functionality
+    elif choiceNo==4:
+        accountexists,newusername=accountmanager(username,admin)
+        username=newusername
+        if accountexists==False:
+            user=tuple()
+            username=""
+            admin=False
+            return
+    elif choiceNo==5 and admin:
+        print("song manager not implemeneted")
+    elif choiceNo==6 and admin:
+        print("user manager not implemented")
+
+def getpwd(message="password:"):
+    while True:     
+        password=getpass(message)
+        if len(password)==0:#if they didnt provide a password print an error
+            print("please input a password")
+            continue
+        else:
+            hashedpass=hashlib.sha3_512(bytes(password,"utf-8")).hexdigest()
+            password="NOPE"
+            break
+    
+        #hash password
+        
+    return hashedpass
+        
+
+
 def login():
     while True:
-        print("----------login----------")
         while True:
+            print("----------login----------")
+            
 
             #get username and password
             username=input("username:")
-            password=getpass("password:")
-
-            #hash password
-            hashedpass=hashlib.sha3_512(bytes(password,"utf-8")).hexdigest()
-            password="NOPE"
+            hashedpass=getpwd()
 
             #check if the user exists
             c.execute("SELECT username,admin FROM users WHERE username=? and password=?",(username,hashedpass))
-
+            user=c.fetchone()
             #if the user exists stop asking for username, otherwise continue asking for login details
-            if c.fetchone() is  None:
+            if user is  None:
+                print("the username and password do not match")
                 continue
             else:
                 break
+        mainmenu(user)
+        
+
+        
         
 
             
