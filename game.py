@@ -14,8 +14,9 @@ def createtables():
     #create a table of usernames and hashed passwords.
     c.execute("SELECT * FROM users WHERE admin=1")#get a list of all users
     if len(c.fetchall())==0:#if there are no users,create a user
-        print("---------setup---------")
-        print("admin account setup")
+        print("---------account creation---------")
+
+            
         while True:#repeatedly get username until a valid username is entered
             username=input("username:")
 
@@ -126,8 +127,15 @@ def accountmanager(username,admin):
         print("1.change username")
         print("2.change password")
         print("3.delete account")
-        print("4.exit account manager")
-        choiceNo=chooseoption(4)
+        if admin:
+            print("4.remove admin perms")
+            print("5.exit account manager")
+            maxchoice=5
+        else:  
+            print("4.exit account manager")
+            maxchoice=4
+        
+        choiceNo=chooseoption(maxchoice)
         if choiceNo==1:
             while True:
                 passw=getpwd()
@@ -147,6 +155,7 @@ def accountmanager(username,admin):
                 else:
                     break
             c.execute("UPDATE users SET username=? WHERE username=?",(newusername,username))
+            conn.commit()
         elif choiceNo==2:
             while True:
                 passw=getpwd("old password:")
@@ -180,10 +189,30 @@ def accountmanager(username,admin):
                 
             confirmation=input("please type",username,"to confirm account deletion")
             if confirmation==username:
+                c.execute("DELETE FROM users WHERE username=?",(username))
+                conn.commit()
                 return False,username
             else:
                 print("cancelling...")
-        elif choiceNo==4:
+        elif choiceNo==4 and not admin:
+            return True, username
+        elif choiceNo==4 and admin:
+            while True:
+                passw=getpwd("password:")
+                c.execute("SELECT username FROM users WHERE username=? and password=?",(username,passw))
+                if user is None:
+                    print("incorrect password")
+                    continue
+                else:
+                    break
+            confirmation=input("please type",username,"to confirm you want to lose admin permissions. this cant be undone")
+            if confirmation==username:
+                c.execute("UPDATE users SET admin=0 WHERE username=?",(username))
+                conn.commit()
+                return False,username
+            else:
+                print("cancelling...")
+        elif choiceNo==5 and admin:
             return True, username
 
         
@@ -204,8 +233,8 @@ def songmanager():
                         print("please input a song name")
                         continue 
                     artists=input("song artist:")
-                    if len(author)==0:
-                        print("please input an author")
+                    if len(artists)==0:
+                        print("please input an artist")
                         continue
                     else:
                         break
@@ -256,6 +285,7 @@ def songmanager():
                         else:
                             break
                     c.execute("UPDATE songs SET name=? WHERE name=?",(newname,songselected[0]))
+                    conn.commit()
 
                 elif choiceid==2:
                     while True:
@@ -266,6 +296,7 @@ def songmanager():
                         else:
                             break
                     c.execute("UPDATE songs SET artist=? WHERE name=?",(newartist,songselected[0]))
+                    conn.commit()
                 elif choiceid==3:
                     break
 
@@ -290,15 +321,131 @@ def songmanager():
             choice=chooseoption(songcount)
             confirm=input("are you sure you want to delete this song?(Y/N)").upper()
             songselected=songslist[choice-1][0]
-            if confirm==True:
-                c.execute("DELETE FROM table WHERE name=?",songselected)
+            if confirm=="Y":
+                c.execute("DELETE FROM songs WHERE name=?",songselected)
+                conn.commit()
         elif choiceNo==4:
             return
+
+def usermanager(username,admin):
+    print("1.list users")
+    print("2.add user")
+    print("3.change a username")
+    print("3.delete a user")
+    print("4.quit")
+    choiceid=chooseoption(6)
+    if choiceid==1:
+        c.execute("SELECT username, admin FROM users")
+        userlist=c.fetchall()
+        usercount=len(userlist)
+        digits=len(str(usercount))
+        users,admins=zip(*userlist)
+        longestuserlen=len(max(users,key=len))
+        digitsstr=str(digits)+"d"    
+        for count, usern in enumerate(userlist):
+            countstr=format(count+1, digitsstr)
+            userspaces=longestuserlen-len(usern[0])
+            if usern[1]==1:
+                admintext="admin"
+            else:
+                admintext="     "
+            line="| "+countstr+" | "+usern[0]+" "*userspaces+" | "+admintext+" |"
+            print(line)
+
+    elif choiceid==2:
+        while True:
+            adminresponse=input("should this user be an admin?(Y/N").upper()
+            if adminresponse=="Y":
+                newuserisadmin=1
+                break
+            elif adminresponse=="N":
+                newuserisadmin=0
+                break
+            else:
+                print("please input Y or N")
+                continue
+        print("---------account creation---------")
+        print("you can now let the user do this. you will be automatically signed out")
+
+            
+        while True:#repeatedly get username until a valid username is entered
+            username=input("username:")
+
+            if len(username)==0:#if they didnt provide a username print an error
+                print("please input a username")
+                continue
+            else:
+                break#if they did provide a username exit the loop
+        while True:
+            password = getpwd()
+            passwordcheck = getpwd("retype password:")
+            if passwordcheck!=password:#if passwords dont match then try again
+                print("passwords do not match, please try again")
+                continue
+            else:
+                break
+        c.execute("INSERT INTO users values(?, ?,?)",(username,password,newuserisadmin))#create the admin user
+        conn.commit()
+        return False
+
+
+    elif choiceid==3:
+        c.execute("SELECT username, admin FROM users")
+        userlist=c.fetchall()
+        usercount=len(userlist)
+        digits=len(str(usercount))
+        users,admins=zip(*userlist)
+        longestuserlen=len(max(users,key=len))
+        digitsstr=str(digits)+"d"    
+        for count, usern in enumerate(userlist):
+            countstr=format(count+1, digitsstr)
+            userspaces=longestuserlen-len(usern[0])
+            if usern[1]==1:
+                admintext="admin"
+            else:
+                admintext="     "
+            line="| "+countstr+" | "+usern[0]+" "*userspaces+" | "+admintext+" |"
+            print(line)
+        choice=chooseoption(usercount)
+        userselected=userlist[choice-1]
+        while True:
+            newname=input("new name:")
+            if len(newname)==0:
+                print("invalid name")
+                continue
+            else:
+                break
+        c.execute("UPDATE users SET usernamename=? WHERE usernamename=?",(newname,userselected[0]))
+        conn.commit()
+    elif choiceid==4:
+        c.execute("SELECT username, admin FROM users")
+        userlist=c.fetchall()
+        usercount=len(userlist)
+        digits=len(str(usercount))
+        users,admins=zip(*userlist)
+        longestuserlen=len(max(users,key=len))
+        digitsstr=str(digits)+"d"    
+        for count, usern in enumerate(userlist):
+            countstr=format(count+1, digitsstr)
+            userspaces=longestuserlen-len(usern[0])
+            if usern[1]==1:
+                admintext="admin"
+            else:
+                admintext="     "
+            line="| "+countstr+" | "+usern[0]+" "*userspaces+" | "+admintext+" |"
+            print(line)
+        choice=chooseoption(usercount)
+        userselected=userlist[choice-1]
+        confirm=input("are you sure you want to delete this user?(Y/N)").upper()
+        if confirm=="Y":
+                c.execute("DELETE FROM users WHERE username=?",userselected[0])
+                conn.commit()
+    elif choiceid==5:
+        return True
 
 
 
 def mainmenu(user):
-
     #set admin variable
     if user[1]==1:
         admin=True
@@ -340,9 +487,15 @@ def mainmenu(user):
             admin=False
             return
     elif choiceNo==5 and admin:
-        print("song manager not implemeneted")
+        songmanager()
     elif choiceNo==6 and admin:
-        print("user manager not implemented")
+        stayloggedin=usermanager(username,admin)
+        if not stayloggedin:
+            user=tuple()
+            username=""
+            admin=False
+            return
+
 
 def getpwd(message="password:"):
     while True:     
@@ -382,13 +535,6 @@ def login():
                 break
         mainmenu(user)
         
-
-        
-        
-
-            
-
-
 if __name__ == '__main__':  # run the game if this file is run
     createtables()
     login()
