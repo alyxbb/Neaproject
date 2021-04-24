@@ -60,6 +60,8 @@ def get_first_letters(phrase):  # returns the phrase with only the first charact
 
 
 def play_game():  # main function, plays the game
+    c.execute("SELECT name, artist FROM songs")
+    SONGS=c.fetchall()
     still_playing = True
     score = 0
     while still_playing:  # repeatedly plays game until you lose
@@ -67,8 +69,8 @@ def play_game():  # main function, plays the game
         song_selected = random.randrange(0, len(SONGS))  # pick random song
 
         # get variables associated with that song
-        song_author = SONGS[song_selected][0]
-        song_name = SONGS[song_selected][1]
+        song_author = SONGS[song_selected][1]
+        song_name = SONGS[song_selected][0]
         name_hidden = get_first_letters(song_name)
 
         # display the author and initials of song
@@ -103,7 +105,6 @@ def guess_song(song_name):
 def chooseoption(maxi):
     while True:
         choice=input("please input a number(1-"+str(maxi)+")")#get an input
-
         #check if the input is valid
         try:
             choiceNo=int(choice)
@@ -266,7 +267,7 @@ def songmanager():
                 countstr=format(count+1, digitsstr)
                 songspaces=longestsonglen-len(song[0])
                 artistspaces=longestartistlen-len(song[1])
-                line="| "+countstr+" | "+song[0]+" "*songspaces+" | "+song[1]+" |"
+                line="| "+countstr+" | "+song[0]+" "*songspaces+" | "+song[1]+" "*artistspaces+" |"
                 print(line)
             choice=chooseoption(songcount)
             songselected=songslist[choice-1]
@@ -316,14 +317,15 @@ def songmanager():
                 countstr=format(count+1, digitsstr)
                 songspaces=longestsonglen-len(song[0])
                 artistspaces=longestartistlen-len(song[1])
-                line="| "+countstr+" | "+song[0]+" "*songspaces+" | "+song[1]+" |"
+                line="| "+countstr+" | "+song[0]+" "*songspaces+" | "+song[1]+" "*artistspaces+" |"
                 print(line)
             choice=chooseoption(songcount)
             confirm=input("are you sure you want to delete this song?(Y/N)").upper()
             songselected=songslist[choice-1][0]
             if confirm=="Y":
-                c.execute("DELETE FROM songs WHERE name=?",songselected)
+                c.execute("DELETE FROM songs WHERE name=?",(songselected,))
                 conn.commit()
+                print("song deleted")
         elif choiceNo==4:
             return
 
@@ -446,55 +448,56 @@ def usermanager(username,admin):
 
 
 def mainmenu(user):
-    #set admin variable
-    if user[1]==1:
-        admin=True
-    else:
-        admin=False
-    username=user[0]
+    while True:
+        #set admin variable
+        if user[1]==1:
+            admin=True
+        else:
+            admin=False
+        username=user[0]
 
-    #print menu
-    print("--------------menu----------------")
-    print("1.logout")
-    print("2.play")
-    print("3.leaderboard")
-    print("4.account managment")
-    options=4
-    #if they are an admin show the admin only options
-    if admin:
-        options=6
-        print("5.song managment")
-        print("6.user managment")
-    choiceNo=chooseoption(options)
+        #print menu
+        print("--------------menu----------------")
+        print("1.logout")
+        print("2.play")
+        print("3.leaderboard")
+        print("4.account managment")
+        options=4
+        #if they are an admin show the admin only options
+        if admin:
+            options=6
+            print("5.song managment")
+            print("6.user managment")
+        choiceNo=chooseoption(options)
 
-    if choiceNo==1:
-        #reset user variables for increased security
-        user=tuple()
-        username=""
-        admin=False
-        return
-    elif choiceNo==2:
-        play_game()
-    elif choiceNo==3:
-        print("leaderboard not implemented")
-        #need to add leaderboard functionality
-    elif choiceNo==4:
-        accountexists,newusername=accountmanager(username,admin)
-        username=newusername
-        if accountexists==False:
+        if choiceNo==1:
+            #reset user variables for increased security
             user=tuple()
             username=""
             admin=False
             return
-    elif choiceNo==5 and admin:
-        songmanager()
-    elif choiceNo==6 and admin:
-        stayloggedin=usermanager(username,admin)
-        if not stayloggedin:
-            user=tuple()
-            username=""
-            admin=False
-            return
+        elif choiceNo==2:
+            play_game()
+        elif choiceNo==3:
+            print("leaderboard not implemented")
+            #need to add leaderboard functionality
+        elif choiceNo==4:
+            accountexists,newusername=accountmanager(username,admin)
+            username=newusername
+            if accountexists==False:
+                user=tuple()
+                username=""
+                admin=False
+                return
+        elif choiceNo==5 and admin:
+            songmanager()
+        elif choiceNo==6 and admin:
+            stayloggedin=usermanager(username,admin)
+            if not stayloggedin:
+                user=tuple()
+                username=""
+                admin=False
+                return
 
 
 def getpwd(message="password:"):
